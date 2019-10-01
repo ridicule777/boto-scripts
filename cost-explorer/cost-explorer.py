@@ -37,8 +37,8 @@ def get_number_of_days_in_a_month():
 def get_project_list():
     if path.exists("tags.yaml"):
         with open('tags.yaml', 'r') as f:
-            config = yaml.load(f)
-            project_list = config.get(project)
+            config = yaml.load(f, Loader=yaml.FullLoader)
+            project_list = config.get('project')
     else:
         print("Config File missing. Exiting script..")
     return project_list
@@ -54,11 +54,16 @@ def get_cost_based_on_tags(project_list, region, start, end):
                 kwargs = {'NextPageToken': token}
             else:
                 kwargs = {}
-            data = cost_explore.get_cost_and_usage(TimePeriod={'Start': start, 'End':  end}, Granularity='DAILY', Metrics=['UnblendedCost'], GroupBy=[
-                {'Type': 'DIMENSION', 'Key': 'LINKED_ACCOUNT'}, {'Type': 'DIMENSION', 'Key': 'SERVICE'}], Filter={'Tags': {'Key': 'Project', 'Values': [name]}} ** kwargs)
-            results += data['ResultsByTime']
-            token = data.get('NextPageToken')
-            print(results)
+                data = cost_explore.get_cost_and_usage(TimePeriod={'Start': start, 'End':  end}, Granularity='DAILY', Metrics=['UnblendedCost'], GroupBy=[
+                                                       {'Type': 'DIMENSION',
+                                                           'Key': 'LINKED_ACCOUNT'},
+                                                       {'Type': 'DIMENSION',
+                                                           'Key': 'SERVICE'}
+                                                       ],
+                                                       Filter={'Tags': {'Key': 'Project', 'Values': [name[1]]}}, **kwargs)
+                results += data['ResultsByTime']
+                token = data.get('NextPageToken')
+                print(results)
             if not token:
                 break
 
@@ -72,21 +77,22 @@ if __name__ == "__main__":
     # day = int(previous_date[2])
     # start = year + '-' + month + '-' + '01'
     # end = year + '-' + month + '-' + day
+    now = datetime.datetime.utcnow()
     end = now.strftime('%Y-%m-%d')
     get_start_date = now - \
         datetime.timedelta(days=total_number_of_days_in_previous_month)
-    start_year = str(get_start_date).split(' ')[0].split("-")[0])
-    start_month=str(get_start_date).split(' ')[0].split("-")[1])
-    start_date=str(get_start_date).split(' ')[0].split("-")[2])
-    start="{year}-{month}-{date}".format(year=start_year,
-                                         month=start_month, date=start_date)
+    start_year = (str(get_start_date).split(' ')[0].split("-")[0])
+    start_month = (str(get_start_date).split(' ')[0].split("-")[1])
+    start_date = (str(get_start_date).split(' ')[0].split("-")[2])
+    start = "{year}-{month}-{date}".format(year=start_year,
+                                           month=start_month, date=start_date)
     # start = datetime.timedelta(days=total_number_of_days_in_previous_month)
-    parser=argparse.ArgumentParser()
+    parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--days', type=int,
                         default=total_number_of_days_in_previous_month)
-    parser.add_argument('-r', '--region', type=string,
+    parser.add_argument('-r', '--region', help="Region where this needs the cost needs to be calculated",
                         default="ap-south-1")
-    args=parser.parse_args()
-    region=args.region
-    project_list=get_project_list()
+    args = parser.parse_args()
+    region = args.region
+    project_list = get_project_list()
     get_cost_based_on_tags(project_list, region, start, end)
